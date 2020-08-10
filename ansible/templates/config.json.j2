@@ -12,7 +12,7 @@
          "only_passing": true
      },
      "enable_syslog": true,
-     "encrypt": "SlZPFhhPHwcHgziWRwzdVeyztKdygelAHCZ9bfXUHMw=",
+     "encrypt": "{{ var_consul_secret.stdout }}",
      "leave_on_terminate": true,
      "log_level": "INFO",
      "rejoin_after_leave": true,

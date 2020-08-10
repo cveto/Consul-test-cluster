@@ -1,0 +1,2 @@
+# Why have templates here and not all just in the one directory?
+#   Ansible can not find templates outside of it's own root directory.
