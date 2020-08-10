@@ -1,0 +1,2 @@
+This public key will be set in the autohrized_keys file.
+You should replace it with your own.

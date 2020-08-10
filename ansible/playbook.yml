@@ -1,0 +1,142 @@
+---
+  - name: Playbook
+    #hosts: localhost              
+    hosts: all                  # Possible Vagrant BUG. This should be localhost, but Vagrant fails to execute. If playbook is run directly on the guest, the localhost works as expected.
+    become: yes                 # All implies localhost
+    gather_facts: yes
+    vars:
+      - var_ip_node_1: "10.22.0.34"                     # Is the server, and the rest of playbook relies on that
+      - var_ip_node_2: "10.22.0.35"
+      - var_ip_node_3: "10.22.0.36"
+      - var_ip_node_4: "10.22.0.37"
+      - var_hostname_node1: "node-4-CentOS7"
+      - var_hostname_node2: "node-5-CentOS7"
+      - var_hostname_node3: "node-6-CentOS7"
+      - var_hostname_node4: "node-7-CentOS7"      
+      - var_ip_consul_server: "{{ var_ip_node_1 }}"     # Is the cosul server      
+      - var_am_i_server: "{{ 'yes' if var_ip_consul_server == ansible_enp0s8.ipv4.address  else 'no' }}"
+      
+      - var_consul_user: "consul"
+      - var_ssh_user: "florjan_p"
+
+    tasks:
+
+      - name: Add a privileged SSH user
+        user:
+          name: "{{ var_ssh_user }}"
+          groups: wheel
+          state: present  
+          expires: -1
+          
+      - name: Add public SSH key to authorized_key. 
+        authorized_key:
+          user: "{{ var_ssh_user }}"
+          state: present
+          key: "{{ lookup('file', '/vagrant/keys/key.pub') }}"          
+      
+      # # Firewall. Ansible rules not the best for ansible
+      # - name: firewall  configuration
+        # command: "{{ item }}"
+        # loop:
+          # - rm -rf /etc/ssh/*key
+      
+      # - name: Remove privileged user vagrant
+        # user:
+          # name: vagrant
+          # state: absent 
+          # remove: yes
+          
+      # - name: Remove vagrant elevation privileges.
+       # file:
+          # path: /etc/sudoers.d/vagrant
+          # state: absent
+          
+      # # Firewall. Ansible rules not the best for ansible
+      # - name: firewall  configuration
+        # command: "{{ item }}"
+        # loop:
+          # - firewall-cmd --permanent --zone=public --add-interface=ens34'
+          
+      # Remove Ansible package
+      # EDIT SSHD file to disalow password logins
+      
+      
+############## CONSUL CONFIGURATION
+      - name: Install consul
+        yum:
+          name: "{{ item }}"
+          state: latest
+        loop:
+          - consul
+
+      - name: Create service group consul
+        group:
+          name: "{{ var_consul_user }}"
+          state: present  
+          system: yes
+
+      - name: Create service user consul
+        user:
+          name: "{{ var_consul_user }}"
+          groups: "{{ var_consul_user }}"
+          state: present  
+          system: yes
+          shell: /sbin/nologin
+          expires: -1
+          
+      - name: Populate HOSTS file
+        lineinfile:
+          path: /etc/hosts
+          owner: "{{ var_consul_user }}"
+          group: "{{ var_consul_user }}"
+          mode: '0775'          
+          line: "{{ item }}"
+          create: yes
+        loop:
+          - "{{ var_ip_node_1 }} {{ var_hostname_node1 }}"
+          - "{{ var_ip_node_2 }} {{ var_hostname_node2 }}"
+          - "{{ var_ip_node_3 }} {{ var_hostname_node3 }}"
+          - "{{ var_ip_node_4 }} {{ var_hostname_node4 }}"
+
+      - name: Create consul configuration directories
+        file:
+          path: "{{ item }}"
+          owner: "{{ var_consul_user }}"
+          group: "{{ var_consul_user }}"
+          state: directory
+          mode: '0775'     
+        loop:
+          - /var/lib/consul 
+          - /etc/consul.d
+
+      - name: Generate consul secret
+        shell: consul keygen
+        register: var_consul_secret
+        
+      - name: Create Consul Service in systemd. 
+        template:
+          src: consul.service.j2
+          dest: /etc/systemd/system/consul.service
+          owner: root
+          group: root
+          mode: '0755'
+          
+      - name: Reload Systemctl daemon
+        command: systemctl daemon-reload
+              
+      - name: Copy over the JSON Consul configuration
+        template:
+          src: config.json.j2
+          dest: /etc/consul.d/config.json 
+          owner: consul
+          group: consul
+          mode: '0755'
+          #validate: /usr/bin/consul validate %s
+      
+      - name: Ensure serices are running is running
+        service:
+          name: "{{ item }}"
+          state: restarted
+        loop:
+          - consul
+          #- firewalld      
