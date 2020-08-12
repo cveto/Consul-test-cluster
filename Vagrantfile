@@ -1,7 +1,7 @@
 
 Vagrant.configure("2") do |config|
   # Loop - Build 3 quite similar Virtal Machines
-  (4..5).each do |i|                                                
+  (4..7).each do |i|                                                
      config.vm.boot_timeout = 600                                               # Centos tends to get stuck on boot when virtualized on "weak" hosts.
      config.vm.define "node-#{i}" do |node|
        node.vm.box="bento/centos-7.2"                                           # What server?

@@ -12,7 +12,7 @@
          "only_passing": true
      },
      "enable_syslog": true,
-     "encrypt": "{{ var_consul_secret.stdout }}",
+     "encrypt": "{{ var_consul_secret }}",
      "leave_on_terminate": true,
      "log_level": "INFO",
      "rejoin_after_leave": true,
@@ -22,7 +22,7 @@
          "{{ var_hostname_node3 }}",
 		 "{{ var_hostname_node4 }}"
      ],
-     "server": true,
+     "server": "{{ 'true' if var_ip_consul_server == ansible_enp0s8.ipv4.address  else 'false' }}",
      "start_join": [
          "{{ var_hostname_node1 }}",
          "{{ var_hostname_node2 }}",

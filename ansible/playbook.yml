@@ -14,11 +14,16 @@
       - var_hostname_node3: "node-6-CentOS7"
       - var_hostname_node4: "node-7-CentOS7"
 
+      - var_consul_data_dir: "/var/lib/consul"
+      - var_consul_config_dir: "/etc/consul.d"
+
       - var_ip_consul_server: "{{ var_ip_node_1 }}"     # Who is to be the Consul server is decided here    
       - var_am_i_server: "{{ 'yes' if var_ip_consul_server == ansible_enp0s8.ipv4.address  else 'no' }}"        
       
       - var_consul_user: "consul"
       - var_ssh_user: "Michel_Lotito"
+
+      - var_consul_secret: "{{ lookup('file', '/vagrant/files/consil_key.txt', errors='ignore') }}"  # In plain text, but that should be allright
 
     tasks:
       ##  F I R E W A L L   C O N F I G U R A T I O N
@@ -108,7 +113,7 @@
           create: yes
         loop:
           - ZONE=dmz
-          - NM_CONTROLLED=no
+          - NM_CONTROLLED=YES
           
       ##  More system hardening - Better to just have a hardened system image ready if we are going to do this often.
         # TCP Wrapers? 
@@ -182,16 +187,16 @@
           state: directory
           mode: '0775'     
         loop:
-          - /var/lib/consul 
-          - /etc/consul.d
+          - "{{ var_consul_config_dir }}"
+          - "{{ var_consul_data_dir }}"
 
-      - name: Generate consul secret
-        shell: consul keygen
-        register: var_consul_secret
+      # - name: Generate consul secret
+        # shell: consul keygen
+        # register: var_consul_secret
         
-      - name: Present yourself
-        debug:
-          msg: "{{ var_consul_secret.stdout }}"
+      # - name: Present yourself
+        # debug:
+          # msg: "{{ var_consul_secret.stdout }}"
         
       - name: Create Consul Service from an Ansible template
         template:
@@ -204,13 +209,13 @@
       - name: Reload Systemctl daemon to make system aware of the service.
         command: systemctl daemon-reload
               
-      - name: Copy over the JSON Consul configuration
-        template:
-          src: config.json.j2
-          dest: /etc/consul.d/config.json 
-          owner: consul
-          group: consul
-          mode: '0755'
+    #  - name: Copy over the JSON Consul configuration
+    #    template:
+    #      src: config.json.j2
+    #      dest: /etc/consul.d/config.json 
+    #      owner: consul
+    #      group: consul
+    #      mode: '0755'
           #validate: /usr/bin/consul validate %s
       
       - name: Ensure serices are (still) running.
@@ -220,7 +225,13 @@
         loop:
           - consul
           - firewalld      
-          - network             # Just keep the freaking zone
+          - network             # Temporary fix (Firewall looses zone upon firewall restart).
+
+      # Join consul member. Should be auto but..meh.
+      - name: firewall  configuration
+        command: "{{ item }}"
+        loop:
+          - consul join {{ var_ip_consul_server }}
           
       ##  C L E A N U P
       ##  **********************************************************************************************

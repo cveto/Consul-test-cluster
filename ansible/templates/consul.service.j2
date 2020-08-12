@@ -9,7 +9,7 @@ Wants=network-online.target
 Type=simple
 User=consul
 Group=consul
-ExecStart=/usr/bin/consul agent {{ '-server -bootstrap-expect=1' if var_am_i_server == 'yes' else '' }} -ui -advertise={{ ansible_enp0s8.ipv4.address }} -bind={{ ansible_enp0s8.ipv4.address }} -data-dir=/var/lib/consul -config-dir=/etc/consul.d
+ExecStart=/usr/bin/consul agent {{'-server -bootstrap-expect=1' if var_am_i_server == 'yes' else ''}} -ui -advertise={{ ansible_enp0s8.ipv4.address }} -bind={{ ansible_enp0s8.ipv4.address }} -data-dir=/var/lib/consul -config-dir=/etc/consul.d
 ExecReload=/bin/kill -HUP $MAINPID"
 KillSignal=SIGINT
 TimeoutStopSec=5
